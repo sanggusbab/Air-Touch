@@ -3,11 +3,11 @@ import numpy as np
 import sys
 
 # cascade classifiers for face and eyes(다운필수)
-face_cascade = cv2.CascadeClassifier('./haarcascade_frontalface_default.xml')
-eye_cascade = cv2.CascadeClassifier('./haarcascade_eye.xml')
+face_cascade = cv2.CascadeClassifier('.\haarcascade_frontalface_default.xml')
+eye_cascade = cv2.CascadeClassifier('.\haarcascade_eye.xml')
 
-video = './eyetrack.mp4'
-cap = cv2.VideoCapture(video)
+video = '.\eyetrack.mp4'
+cap = cv2.VideoCapture(0)
 
 '''def blob_process(img, detector):
     gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
