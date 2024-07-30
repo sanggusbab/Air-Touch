@@ -28,23 +28,41 @@ if cap.isOpened():
                 #print(x, y, w, h)
                 cv2.rectangle(gray,(x,y),(x+w,y+h),(255,0, 0),2) 
                 #흑백으로 할 거라 gray라 씀/컬러로 할 거면 frame 쓰기
-                height = int(h / 2)
-                width = int(w/2)
-                gray_face = gray[y:y+ height, x:x+width] #왼쪽 눈만 남김
+                height = int(h*2/5)
+                gray_face = gray[y:y+ height, x:x+w] #왼쪽 눈만 남김
                 eyes = eye_cascade.detectMultiScale(gray_face)
 
-                for (ex,ey,ew,eh) in eyes: #이거 잘 안 됨.. 얼굴 위로 어케 자르냐 -> 해결
-                    cv2.rectangle(gray_face,(ex,ey),(ex+ew,ey+eh),(255, 0, 255),2)
-                    # eye_width = np.size(gray_eye, 1) /2
-                    # eye_height = np.size(gray_eye, 0)/2
-                    #eye_center = eye_width/2, eye_height/2
-                    xx = int(ex + (0.5 * ew))
-                    yy= int(ey + (0.5 * eh))
-                    print(f"x: {xx}\ty: {yy}")
-                    cv2.circle(gray_face,(xx, yy), 5,(255, 0, 0),thickness=2)
-                    gray_eye = gray_face[ey:ey+eh, ex:ex+ew]
-                    cv2.imshow("eye", gray_eye)
-                    cv2.imshow("original", frame)
+                #   for (ex,ey,ew,eh) in eyes: #이거 잘 안 됨.. 얼굴 위로 어케 자르냐 -> 해결
+                #     cv2.rectangle(gray_face,(ex,ey),(ex+ew,ey+eh),(255, 0, 255),2)
+                #     # eye_width = np.size(gray_eye, 1) /2
+                #     # eye_height = np.size(gray_eye, 0)/2
+                #     #eye_center = eye_width/2, eye_height/2
+                #     xx = int(ex + (0.5 * ew))
+                #     yy= int(ey + (0.5 * eh))
+                #     print(f"x: {xx}\ty: {yy}")
+                #     cv2.circle(gray_face,(xx, yy), 5,(255, 0, 0),thickness=2)
+                #     gray_eye = gray_face[ey:ey+eh, ex:ex+ew]
+                #     r_eye = int(ew/2)
+                    
+                #     cv2.circle(frame, (x+xx,y+yy), r_eye, (255, 0, 0) , thickness=1, lineType=cv2.LINE_4, shift=None)
+                    
+                #     cv2.imshow("eye", gray_eye)
+                #     cv2.imshow("original", frame)
+                    
+                
+                print(eyes)
+                for (x_eye, y_eye, w_eye, h_eye) in eyes : 
+                    cv2.rectangle(frame,(x_eye,y_eye),(x_eye+w_eye,y_eye+h_eye),(255,0, 0),2)
+                
+             cv2.imshow("gray",frame)
+                    #muwon 
+                    
+                    
+                    
+                    
+                    
+                    
+                    
 
             if cv2.waitKey(30) & 0xFF == ord('q'): 
                 break
