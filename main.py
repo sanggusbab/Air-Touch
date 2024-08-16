@@ -8,6 +8,7 @@ from gaze import gaze
 from display import draw_gaze_point
 from AngleBuffer import AngleBuffer
 from initial import Affin
+from click import HandClickDetector
 
 mp_face_mesh = mp.solutions.face_mesh.FaceMesh(
     max_num_faces=1,
@@ -22,6 +23,7 @@ args = parser.parse_args()
 
 cap = cv.VideoCapture(int(args.camSource))
 angle_buffer = AngleBuffer(size=MOVING_AVERAGE_WINDOW)
+hand_click_detector = HandClickDetector()
 
 cv.namedWindow("D")
 cv.createTrackbar("distance", "D", 600, 2000, lambda x: x)
@@ -40,6 +42,7 @@ try:
 
         DISTANCE = cv.getTrackbarPos("distance", "D")
         x, y = gaze(frame, DISTANCE, angle_buffer, mp_face_mesh)
+
         # frame_affin = Affin(frame, [x,y])
         if len(x_list) < NUM_LIST:
             x_list.insert(0, x)
@@ -53,6 +56,8 @@ try:
         gaze_point = [int(sum(x_list) / len(x_list)), int(sum(y_list) / len(y_list))]
         draw_gaze_point(frame, x_list, y_list, gaze_point)
         
+        click_detected = hand_click_detector.click(frame)
+
         key = cv.waitKey(1) & 0xFF
         if key == ord('c'):
             constants.SETUP_STEP = 0
