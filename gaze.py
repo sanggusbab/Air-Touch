@@ -50,11 +50,11 @@ DISPLAY_W = root.winfo_screenwidth()
 
 #num of print grid
 NUM_GRID = 5 
-NUM_LIST = 20
+NUM_LIST = 10
 # eye gaze parameter
-EYE_DEGREE_PARAMETER = DISTANCE / 40
+EYE_DEGREE_PARAMETER = DISTANCE / 10
 
-TB_WEIGHT = 1.5
+TB_WEIGHT = 1.2
 
 
 ## User-Specific Measurements
@@ -205,13 +205,10 @@ def vector_position(point1, point2):
     return x2 - x1, y2 - y1
 def euclidean_distance_3D(points):
     """Calculates the Euclidean distance between two points in 3D space.
-
     Args:
         points: A list of 3D points.
-
     Returns:
         The Euclidean distance between the two points.
-
         # Comment: This function calculates the Euclidean distance between two points in 3D space.
     """
 
@@ -244,7 +241,7 @@ def estimate_head_pose(landmarks, image_size):
         (-150.0 * scale_factor, -150.0 * scale_factor, -125.0 * scale_factor),    # Left Mouth corner
         (150.0 * scale_factor, -150.0 * scale_factor, -125.0 * scale_factor)      # Right mouth corner
     ])
-    
+
 
     # Camera internals
     focal_length = image_size[1]
@@ -283,111 +280,15 @@ def estimate_head_pose(landmarks, image_size):
     pitch, yaw, roll = euler_angles.flatten()[:3]
 
 
-    # Normalize the pitch angle
+     # Normalize the pitch angle
     pitch = normalize_pitch(pitch)
 
     return pitch, yaw, roll
-
-relative = lambda landmark, shape: (int(landmark.x * shape[1]), int(landmark.y * shape[0]))
-relativeT = lambda landmark, shape: (int(landmark.x * shape[1]), int(landmark.y * shape[0]), 0)
-def eye(frame, points):
-    """
-    The gaze function gets an image and face landmarks from mediapipe framework.
-    The function draws the gaze direction into the frame.
-    """
-
-    '''
-    2D image points.
-    relative takes mediapipe points that is normalized to [-1, 1] and returns image points
-    at (x,y) format
-    '''
-    image_points = np.array([
-        relative(points.landmark[4], frame.shape),  # Nose tip
-        relative(points.landmark[152], frame.shape),  # Chin
-        relative(points.landmark[263], frame.shape),  # Left eye left corner
-        relative(points.landmark[33], frame.shape),  # Right eye right corner
-        relative(points.landmark[287], frame.shape),  # Left Mouth corner
-        relative(points.landmark[57], frame.shape)  # Right mouth corner
-    ], dtype="double")
-
-    '''
-    2D image points.
-    relativeT takes mediapipe points that is normalized to [-1, 1] and returns image points
-    at (x,y,0) format
-    '''
-    image_points1 = np.array([
-        relativeT(points.landmark[4], frame.shape),  # Nose tip
-        relativeT(points.landmark[152], frame.shape),  # Chin
-        relativeT(points.landmark[263], frame.shape),  # Left eye, left corner
-        relativeT(points.landmark[33], frame.shape),  # Right eye, right corner
-        relativeT(points.landmark[287], frame.shape),  # Left Mouth corner
-        relativeT(points.landmark[57], frame.shape)  # Right mouth corner
-    ], dtype="double")
-
-    # 3D model points.
-    model_points = np.array([
-        (0.0, 0.0, 0.0),  # Nose tip
-        (0, -63.6, -12.5),  # Chin
-        (-43.3, 32.7, -26),  # Left eye, left corner
-        (43.3, 32.7, -26),  # Right eye, right corner
-        (-28.9, -28.9, -24.1),  # Left Mouth corner
-        (28.9, -28.9, -24.1)  # Right mouth corner
-    ])
-
-    '''
-    3D model eye points
-    The center of the eye ball
-    '''
-    Eye_ball_center_right = np.array([[-29.05], [32.7], [-39.5]])
-    Eye_ball_center_left = np.array([[29.05], [32.7], [-39.5]])  # the center of the left eyeball as a vector.
-
-    '''
-    camera matrix estimation
-    '''
-    focal_length = frame.shape[1]
-    center = (frame.shape[1] / 2, frame.shape[0] / 2)
-    camera_matrix = np.array(
-        [[focal_length, 0, center[0]],
-         [0, focal_length, center[1]],
-         [0, 0, 1]], dtype="double"
-    )
-
-    dist_coeffs = np.zeros((4, 1))  # Assuming no lens distortion
-    (success, rotation_vector, translation_vector) = cv.solvePnP(model_points, image_points, camera_matrix, dist_coeffs, flags=cv.SOLVEPNP_ITERATIVE)
-
-    # 2d pupil location
-    left_pupil = relative(points.landmark[468], frame.shape)
-    right_pupil = relative(points.landmark[473], frame.shape)
-
-    # Transformation between image point to world point
-    _, transformation, _ = cv.estimateAffine3D(image_points1, model_points)  # image to world transformation
-
-    if transformation is not None:  # if estimateAffine3D secsseded
-        # project pupil image point into 3d world point 
-        pupil_world_cord = transformation @ np.array([[left_pupil[0], left_pupil[1], 0, 1]]).T
-
-        # 3D gaze point (10 is arbitrary value denoting gaze distance)
-        S = Eye_ball_center_left + (pupil_world_cord - Eye_ball_center_left) * 10
-
-        # Project a 3D gaze direction onto the image plane.
-        (eye_pupil2D, _) = cv.projectPoints((int(S[0]), int(S[1]), int(S[2])), rotation_vector,translation_vector, camera_matrix, dist_coeffs)
-        # project 3D head pose into the image plane
-        (head_pose, _) = cv.projectPoints((int(pupil_world_cord[0]), int(pupil_world_cord[1]), int(40)), rotation_vector, translation_vector, camera_matrix, dist_coeffs)
-        # correct gaze for head rotation
-        gaze = left_pupil + (eye_pupil2D[0][0] - left_pupil) - (head_pose[0][0] - left_pupil)
-
-        # Draw gaze line into screen
-        p1 = (int(left_pupil[0]), int(left_pupil[1]))
-        p2 = (int(gaze[0]), int(gaze[1]))
-    return p1,p2
-
 def normalize_pitch(pitch):
     """
     Normalize the pitch angle to be within the range of [-90, 90].
-
     Args:
         pitch (float): The raw pitch angle in degrees.
-
     Returns:
         float: The normalized pitch angle.
     """
@@ -403,21 +304,18 @@ def normalize_pitch(pitch):
         pitch = -(180 + pitch)
     elif pitch > 90:
         pitch = 180 - pitch
-        
+
     pitch = -pitch
 
     return pitch
 
-
 def gaze(frame, distance):
     global initial_pitch, initial_yaw, initial_roll, IS_RECORDING, key,calibrated, initial_diff_eye_x, initial_diff_eye_y,initial_y,initial_x
-    
-    
-    
+
     rgb_frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
     img_h, img_w = frame.shape[:2]
     results = mp_face_mesh.process(rgb_frame)
-    
+
     if results.multi_face_landmarks:
         mesh_points = np.array(
             [
@@ -425,22 +323,17 @@ def gaze(frame, distance):
                 for p in results.multi_face_landmarks[0].landmark
             ]
         )
-        
-        #a,b = eye(frame,results.multi_face_landmarks[0])
-        #print(a,b)
-        cv.circle(frame, a, 5, (0, 0, 255), -1)
-        cv.circle(frame, b, 10, (0, 0, 255), -1)
 
         # eye
         (l_bx, l_by), l_radius = cv.minEnclosingCircle(mesh_points[LEFT_EYE_IRIS])
         (r_bx, r_by), r_radius = cv.minEnclosingCircle(mesh_points[RIGHT_EYE_IRIS])        
         (l_ex, l_ey), l_radius = cv.minEnclosingCircle(mesh_points[LEFT_EYE_POINTS])
         (r_ex, r_ey), r_radius = cv.minEnclosingCircle(mesh_points[RIGHT_EYE_POINTS])
-        center_eye = np.array([int((l_ex + r_ex)/2), int((l_ey + r_ey)/2)], dtype=np.int32)
-        
-        diff_eye_x = int((l_ex + r_ex - l_bx - r_bx)* EYE_DEGREE_PARAMETER /2)
-        diff_eye_y = int((l_ey + r_ey - l_by - r_by)* EYE_DEGREE_PARAMETER * TB_WEIGHT/2)
-        
+        center_eye = np.array([int((l_ex+r_ex)/2), int((l_ey+ r_ey)/2)], dtype=np.int32)
+
+        diff_eye_x = int((l_ex + r_ex - l_bx - r_bx)/2)
+        diff_eye_y = int((l_ey + r_ey - l_by - r_by)/2)
+
         # head pose -> pitch, yaw
         if ENABLE_HEAD_POSE:
             pitch, yaw, roll = estimate_head_pose(mesh_points, (img_h, img_w))
@@ -455,7 +348,7 @@ def gaze(frame, distance):
                     initial_diff_eye_x, initial_diff_eye_y = 0,0
                 else :
                     initial_diff_eye_x, initial_diff_eye_y = diff_eye_x, diff_eye_y
-                    
+
                 calibrated = True
                 if PRINT_DATA:
                     print("Head pose recalibrated.")
@@ -465,14 +358,14 @@ def gaze(frame, distance):
                 pitch -= initial_pitch
                 yaw -= initial_yaw
                 roll -= initial_roll
-            
-            
+
+
             # if PRINT_DATA:
             #     print(f"Head Pose Angles: Pitch={pitch}, Yaw={yaw}, Roll={roll}")
-        
+
         yaw_radian = yaw *  np.pi / 180
         pitch_radian = pitch * np.pi / 180
-        
+
         # print in frame
         if SHOW_ON_SCREEN_DATA:
             if IS_RECORDING:
@@ -481,16 +374,14 @@ def gaze(frame, distance):
                 cv.putText(frame, f"Pitch: {int(pitch)}", (30, 110), cv.FONT_HERSHEY_DUPLEX, 0.8, (0, 255, 0), 2, cv.LINE_AA)
                 cv.putText(frame, f"Yaw: {int(yaw)}", (30, 140), cv.FONT_HERSHEY_DUPLEX, 0.8, (0, 255, 0), 2, cv.LINE_AA)
                 cv.putText(frame, f"Roll: {int(roll)}", (30, 170), cv.FONT_HERSHEY_DUPLEX, 0.8, (0, 255, 0), 2, cv.LINE_AA)
-        
-        
-        # eye_adjustment = [(diff_eye_x - initial_diff_eye_x),(-diff_eye_y + initial_diff_eye_y)  ]
-        eye_adjustment = [0,0]
-        #eye_adjustment = [(a[0]-b[0]) * EYE_DEGREE_PARAMETER, (b[1]-a[1]) * EYE_DEGREE_PARAMETER]
+
+
+        eye_adjustment = [(diff_eye_x - initial_diff_eye_x)*EYE_DEGREE_PARAMETER,(-diff_eye_y + initial_diff_eye_y) * EYE_DEGREE_PARAMETER * TB_WEIGHT ]
         gaze_point = (
             int((initial_x + center_eye[0]) / img_w * DISPLAY_W + distance * math.tan(yaw_radian) + eye_adjustment[0]),
-            int((initial_y + center_eye[1]) / img_h * DISPLAY_H - distance * TB_WEIGHT * math.tan(pitch_radian) + eye_adjustment[1] * TB_WEIGHT),
+            int((initial_y + center_eye[1]) / img_h * DISPLAY_H - distance * TB_WEIGHT * math.tan(pitch_radian) + eye_adjustment[1]),
         )
-        
+
         return gaze_point[0], gaze_point[1]
 
 # Initializing MediaPipe face mesh and camera
@@ -507,7 +398,7 @@ mp_face_mesh = mp.solutions.face_mesh.FaceMesh(
     min_tracking_confidence=MIN_TRACKING_CONFIDENCE,
 )
 cam_source = int(args.camSource)
-cap = cv.VideoCapture(1)
+cap = cv.VideoCapture(cam_source)
 # Main loop for video capture and processing
 try:
     angle_buffer = AngleBuffer(size=MOVING_AVERAGE_WINDOW)  # Adjust size for smoothing
@@ -523,36 +414,23 @@ try:
         ret, frame = cap.read()
         if not ret:
             break
-        
+
         DISTANCE = cv.getTrackbarPos("distance", "D")
-        
+
         #gaze
         x, y = gaze(frame, DISTANCE)
-        
+
         #gaze point list
         if(len(x_list) < NUM_LIST):
             x_list.insert(0,x)
             y_list.insert(0,y)
-        else :
-        #     if((x-x_mean)/x_std <5): 
-        #         x_list.pop()
-        #         x_list.insert(0,x)
-        #     if((y-y_mean)/y_std <5): 
-        #         y_list.pop()
-        #         y_list.insert(0,y)
+        else : 
             x_list.pop()
-            x_list.insert(0,x)
             y_list.pop()
+            x_list.insert(0,x)
             y_list.insert(0,y)
-                
-        
 
         gaze_point = [int((sum(x_list)/len(x_list))), int((sum(y_list)/len(y_list)))]
-        # if(len(x_list) >2):
-        #     x_mean = np.mean(x_list)
-        #     x_std = np.std(x_list)
-        #     y_mean = np.mean(y_list)
-        #     y_std = np.std(y_list)
         display = np.zeros((DISPLAY_H,DISPLAY_W),np.uint8)
         cv.circle(display, gaze_point, 10, (255, 0, 0), 5, cv.LINE_AA)
         cv.circle(display, (x,y), 5, (255, 0, 0), 5, cv.LINE_AA)
@@ -571,22 +449,22 @@ try:
 
         cv.rectangle(display, (int(DISPLAY_W *gaze_grid[0]/NUM_GRID), int(DISPLAY_H * gaze_grid[1]/NUM_GRID) ), (int(DISPLAY_W *(gaze_grid[0]+1)/NUM_GRID),int(DISPLAY_H * (gaze_grid[1]+1)/NUM_GRID)), (255,0,0),5)
         cv.imshow("display",display)
-        
-        
+
+
         # Displaying the processed frame
         cv.imshow("Eye Tracking", frame)
         # Handle key presses
         key = cv.waitKey(1) & 0xFF
-        
+
         # Inside the main loop, handle the 'r' key press
         if key == ord('r'):
-            
+
             IS_RECORDING = not IS_RECORDING
             if IS_RECORDING:
                 print("Recording started.")
             else:
                 print("Recording paused.")
-        
+
         if key == ord('q'):
             if PRINT_DATA:
                 print("Exiting program...")
