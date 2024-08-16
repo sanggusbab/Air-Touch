@@ -16,21 +16,17 @@ mp_face_mesh = mp.solutions.face_mesh.FaceMesh(
     min_tracking_confidence=MIN_TRACKING_CONFIDENCE,
 )
 
-parser = argparse.ArgumentParser(description="Eye Tracking Application")
-parser.add_argument("-c", "--camSource", help="Source of camera", default=str(DEFAULT_WEBCAM))
-args = parser.parse_args()
 
-cap = cv.VideoCapture(int(args.camSource))
+cap = cv.VideoCapture(0)
 angle_buffer = AngleBuffer(size=MOVING_AVERAGE_WINDOW)
 
 cv.namedWindow("D")
 cv.createTrackbar("distance", "D", 600, 2000, lambda x: x)
 cv.setTrackbarPos("distance", "D", 1200)
 
-x_list = []
-y_list = []
-x=0
-y=0
+x_list = [0]
+y_list = [0]
+
 
 try:
     while True:
@@ -39,8 +35,8 @@ try:
             break
 
         DISTANCE = cv.getTrackbarPos("distance", "D")
-        x, y = gaze(frame, DISTANCE, angle_buffer, mp_face_mesh)
-        # frame_affin = Affin(frame, [x,y])
+        frame_affin = Affin(frame, (int(sum(x_list) / len(x_list)), int(sum(y_list) / len(y_list))))
+        x, y = gaze(frame_affin, DISTANCE, angle_buffer, mp_face_mesh)
         if len(x_list) < NUM_LIST:
             x_list.insert(0, x)
             y_list.insert(0, y)
@@ -52,6 +48,8 @@ try:
 
         gaze_point = [int(sum(x_list) / len(x_list)), int(sum(y_list) / len(y_list))]
         draw_gaze_point(frame, x_list, y_list, gaze_point)
+        
+        
         
         key = cv.waitKey(1) & 0xFF
         if key == ord('c'):

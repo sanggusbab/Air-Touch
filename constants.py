@@ -12,15 +12,15 @@ SETUP_STEP = 0
 key = 255
 
 #Affin Parameters
-Point_affin = [[int(0.5 * DISPLAY_W),int(0.5 * DISPLAY_H)], [int(DISPLAY_W),0], [DISPLAY_W,DISPLAY_H], [0, DISPLAY_H]]
+Point_affin = [[int(0.5 * DISPLAY_W),int(0.5 * DISPLAY_H)], [int(0.8 * DISPLAY_W),int(0.2 * DISPLAY_H)], [int(0.8 * DISPLAY_W),int(0.8 * DISPLAY_H)], [int(0.2 * DISPLAY_W),int(0.8 * DISPLAY_H)]]
 
 # Num of print grid
 NUM_GRID = 5 
-NUM_LIST = 10
+NUM_LIST = 20
 
 # Eye gaze parameter
 EYE_DEGREE_PARAMETER = DISTANCE / 10
-TB_WEIGHT = 1.2
+TB_WEIGHT = 1.45
 
 # User-Specific Measurements
 USER_FACE_WIDTH = 140  # [mm]

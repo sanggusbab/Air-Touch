@@ -6,8 +6,9 @@ import constants
 def Affin(frame, gaze):
     
     global SETUP_STEP, key, gaze_points
-    h, w, c = frame.shape
+    
     setup_D = np.zeros((DISPLAY_H, DISPLAY_W), np.uint8)
+    cv.circle(setup_D, gaze, 3, (255, 0, 0), 5, cv.LINE_AA)
     cv.namedWindow('setup_page', cv.WINDOW_NORMAL)
     cv.setWindowProperty('setup_page', cv.WND_PROP_FULLSCREEN, cv.WINDOW_FULLSCREEN)
     if(constants.SETUP_STEP == 0) :
@@ -44,10 +45,12 @@ def Affin(frame, gaze):
             cv.destroyWindow( 'setup_page' )
             print(Point_affin[1:4], gaze_points)
         
-            A = np.float32()
-            Affin_Matrix = cv.getAffineTransform(np.float32(Point_affin[1:3]), np.float32(gaze_points))
-            screw_frame = cv.warpAffine(frame, Affin_Matrix, (w,h))
-    
+            A = np.array(Point_affin[1:4], dtype =np.float32)
+            B = np.array(gaze_points, dtype = np.float32)
+            Affin_Matrix = cv.getAffineTransform(A,B)
+            print(Affin_Matrix)
+            screw_frame = cv.warpAffine(frame, Affin_Matrix, (0,0))
+            print(screw_frame)
             return screw_frame
 
     return frame
