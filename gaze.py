@@ -1,5 +1,6 @@
 import numpy as np
 import cv2 as cv
+import constants
 from constants import *
 from utils import normalize_pitch
 import math
@@ -48,7 +49,7 @@ def estimate_head_pose(landmarks, image_size):
     return pitch, yaw, roll
 
 def gaze(frame, distance, angle_buffer, mp_face_mesh):
-    global initial_pitch, initial_yaw, initial_roll, IS_RECORDING, key, calibrated, initial_diff_eye_x, initial_diff_eye_y, initial_y, initial_x
+    global initial_pitch, initial_yaw, initial_roll, calibrated, initial_diff_eye_x, initial_diff_eye_y, initial_y, initial_x, Point_affin, key, SETUP_STEP
     
     rgb_frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
     img_h, img_w = frame.shape[:2]
@@ -75,8 +76,7 @@ def gaze(frame, distance, angle_buffer, mp_face_mesh):
             pitch, yaw, roll = estimate_head_pose(mesh_points, (img_h, img_w))
             angle_buffer.add([pitch, yaw, roll])
             pitch, yaw, roll = angle_buffer.get_average()
-
-            if initial_pitch is None or (key == ord('c') and calibrated):
+            if initial_pitch is None or (constants.SETUP_STEP == 0 and calibrated):
                 initial_pitch, initial_yaw, initial_roll = pitch, yaw, roll
                 initial_x, initial_y = img_w/2 - center_eye[0],  img_h/2-center_eye[1]
                 if diff_eye_x is None or diff_eye_y is None :
@@ -97,8 +97,6 @@ def gaze(frame, distance, angle_buffer, mp_face_mesh):
         pitch_radian = pitch * np.pi / 180
         
         if SHOW_ON_SCREEN_DATA:
-            if IS_RECORDING:
-                cv.circle(frame, (30, 30), 10, (0, 0, 255), -1) 
             if ENABLE_HEAD_POSE:
                 cv.putText(frame, f"Pitch: {int(pitch)}", (30, 110), cv.FONT_HERSHEY_DUPLEX, 0.8, (0, 255, 0), 2, cv.LINE_AA)
                 cv.putText(frame, f"Yaw: {int(yaw)}", (30, 140), cv.FONT_HERSHEY_DUPLEX, 0.8, (0, 255, 0), 2, cv.LINE_AA)
@@ -111,3 +109,6 @@ def gaze(frame, distance, angle_buffer, mp_face_mesh):
         )
         
         return gaze_point[0], gaze_point[1]
+
+
+

@@ -8,6 +8,11 @@ DISTANCE = 600
 root = tkinter.Tk()
 DISPLAY_H = root.winfo_screenheight() - 50
 DISPLAY_W = root.winfo_screenwidth()
+SETUP_STEP = 0
+key = 255
+
+#Affin Parameters
+Point_affin = [[int(0.5 * DISPLAY_W),int(0.5 * DISPLAY_H)], [int(DISPLAY_W),0], [DISPLAY_W,DISPLAY_H], [0, DISPLAY_H]]
 
 # Num of print grid
 NUM_GRID = 5 
