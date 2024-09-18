@@ -6,8 +6,8 @@ DISTANCE = 1000
 
 # Monitor size
 root = tkinter.Tk()
-DISPLAY_H = root.winfo_screenheight() - 50
-DISPLAY_W = root.winfo_screenwidth()
+DISPLAY_H = 1900
+DISPLAY_W = 1000
 SETUP_STEP = 0
 key = 255
 

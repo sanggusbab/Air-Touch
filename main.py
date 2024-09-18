@@ -1,5 +1,6 @@
 # main.py
 import os
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
 import sys
 import cv2
 import pyautogui
@@ -7,6 +8,7 @@ from PyQt5.QtWidgets import QApplication, QWidget
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QPainter, QPen, QColor, QBrush
 from click import HandClickDetector
+from gaze import GazeEstimator
 
 class TransparentWindow(QWidget):
     def __init__(self):
@@ -19,7 +21,7 @@ class TransparentWindow(QWidget):
         self.setAttribute(Qt.WA_NoSystemBackground, True)
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
      
-        self.setGeometry(0, 0, 600, 1000)
+        self.setGeometry(0, 0, 1080, 1920)
         self.show()
 
         # 물결 효과 관련 변수
@@ -42,15 +44,18 @@ class TransparentWindow(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
+        # 배경을 투명하게 설정
+        painter.setCompositionMode(QPainter.CompositionMode_Clear)
+        painter.fillRect(self.rect(), Qt.transparent)
+        painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+
+        # 물결 효과 그리기
         for (x, y, radius) in self.waves:
             alpha = max(0, 127 - int(127 * (radius / self.max_radius)))  # 반투명도 조정
             gradient_color = QColor(0, 255, 255, alpha)
-            brush = QBrush(gradient_color)
-
             pen = QPen(gradient_color, 3)
             painter.setPen(pen)
-            painter.setBrush(brush)
-
+            painter.setBrush(Qt.NoBrush)
             painter.drawEllipse(x - radius, y - radius, 2 * radius, 2 * radius)
 
     def setGazeCoordinates(self, x, y):
@@ -67,23 +72,26 @@ class TransparentWindow(QWidget):
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.show()
 
-def gaze(_frame=None):
-    import random
-    random_num = random.randint(0, 10) % 10
-    if random_num > 5:
-        x = random.randint(100, 500)
-        y = random.randint(100, 1000)
-    else:
-        x = 200
-        y = 200
-    return x, y
+# def gaze(_frame=None):
+#     import random
+#     random_num = random.randint(0, 10) % 10
+#     if random_num > 5:
+#         x = random.randint(100, 500)
+#         y = random.randint(100, 1000)
+#     else:
+#         x = 200
+#         y = 200
+#     return x, y
 
 def main():
+    app = QApplication(sys.argv)
+    window = TransparentWindow()
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print("Webcam not found")
         return
     hand_click_detector = HandClickDetector()
+    Gaze = GazeEstimator()
     is_Clicking_gesture = False
     x = 0
     y = 0
@@ -94,9 +102,6 @@ def main():
     gesturePeriod = 1
     windowPeriod = 5
     
-    app = QApplication(sys.argv)
-    window = TransparentWindow()
-    
     while True:
         cycleCounter += 1
         ret, frame = cap.read()
@@ -104,7 +109,10 @@ def main():
         ##########################################################################################
         ##########################################################################################
         if 0 == cycleCounter % gazePeriod: # 10 * N/sec executing
-            x, y = gaze(frame) # TODO: develop gaze module
+            x, y = Gaze.gaze(frame) # TODO: develop gaze module
+            x = max(50, min(x, 1080 - 50))
+            y = max(50, min(y, 1920 - 50))
+
         ##########################################################################################
         ##########################################################################################
 
