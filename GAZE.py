@@ -25,10 +25,10 @@ def gaze(frame):
     
     # frame_affin = Affin(frame, (int(sum(x_list) / len(x_list)), int(sum(y_list) / len(y_list))))
     if(initial):
-        calibrated =0
-        initial =False
+        calibrated = 0
+        initial = False
     
-    DISTANCE = 600
+    DISTANCE = 1600
     # frame_affin = Affin(frame, (int(sum(x_list) / len(x_list)), int(sum(y_list) / len(y_list))))
     rgb_frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
     img_h, img_w = frame.shape[:2]
@@ -50,7 +50,7 @@ def gaze(frame):
         print(center_eye)
         diff_eye_x = int((l_ex + r_ex - l_bx - r_bx)/2)
         diff_eye_y = int((l_ey + r_ey - l_by - r_by)/2)
-        
+        center_eye = mesh_points[4]
         if ENABLE_HEAD_POSE:
             pitch, yaw, roll = estimate_head_pose(mesh_points, (img_h, img_w))
             angle_buffer.add([pitch, yaw, roll])
@@ -59,7 +59,7 @@ def gaze(frame):
             if initial_pitch is None or (not calibrated):
 
                 initial_pitch, initial_yaw, initial_roll = pitch, yaw, roll
-                initial_x, initial_y = img_w/2 - center_eye[0],  img_h/2-center_eye[1]
+                initial_x, initial_y = img_w/2 ,  img_h/2
                 if diff_eye_x is None or diff_eye_y is None :
                     initial_diff_eye_x, initial_diff_eye_y = 0,0
                 else :

@@ -2,7 +2,7 @@ import tkinter
 
 # Camera Parameters
 NOSE_TO_CAMERA_DISTANCE = 600  # [mm]
-DISTANCE = 1000
+DISTANCE = 1650
 
 # Monitor size
 root = tkinter.Tk()
@@ -12,15 +12,15 @@ SETUP_STEP = 0
 key = 255
 
 #Affin Parameters
-Point_affin = [[int(0.5 * DISPLAY_W),int(0.5 * DISPLAY_H)], [int(0.8 * DISPLAY_W),int(0.2 * DISPLAY_H)], [int(0.8 * DISPLAY_W),int(0.8 * DISPLAY_H)], [int(0.2 * DISPLAY_W),int(0.8 * DISPLAY_H)]]
+Point_affin = [[int(0.5 * DISPLAY_W), int(0.5 * DISPLAY_H)], [int(0.8 * DISPLAY_W),int(0.2 * DISPLAY_H)], [int(0.8 * DISPLAY_W),int(0.8 * DISPLAY_H)], [int(0.2 * DISPLAY_W),int(0.8 * DISPLAY_H)]]
 
 # Num of print grid
 NUM_GRID = 5 
-NUM_LIST = 5
+NUM_LIST = 4
 
 # Eye gaze parameter
 EYE_DEGREE_PARAMETER = DISTANCE / 10
-TB_WEIGHT = 1.15
+TB_WEIGHT = 2.7
 
 # User-Specific Measurements
 USER_FACE_WIDTH = 140  # [mm]

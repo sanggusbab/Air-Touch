@@ -20,9 +20,9 @@ def resource_path(relative_path):
     base_path = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
-main_page_class = uic.loadUiType(resource_path('./UI/mega_ui_ver3.ui'))[0] # 메가 메인 UI 불러오기
-choose_option_class = uic.loadUiType(resource_path('./UI/mega_choose_option_page.ui'))[0] # 메가 음료옵션창 불러오기
-msg_box_class = uic.loadUiType(resource_path('./UI/msg_box.ui'))[0]  # 메세지박스 ui 불러오기
+main_page_class = uic.loadUiType(resource_path('./UI/scaled_mega_ui_ver3.ui'))[0] # 메가 메인 UI 불러오기
+choose_option_class = uic.loadUiType(resource_path('./UI/scaled_mega_choose_option_page.ui'))[0] # 메가 음료옵션창 불러오기
+msg_box_class = uic.loadUiType(resource_path('./UI/scaled_msg_box.ui'))[0]  # 메세지박스 ui 불러오기
 class MSG_Dialog(QDialog, msg_box_class):
     """메세지 박스 다이얼로그"""
     data_signal = pyqtSignal(str)
@@ -265,28 +265,33 @@ class Option_Class(QDialog, choose_option_class):
 class WindowClass(QMainWindow, main_page_class):
     """오픈화면 & 메인화면 창"""
     clicked = pyqtSignal()
+
     def __init__(self):
         super().__init__()
         self.setupUi(self)
 
+        # 창 크기 조정 및 위치 설정
+        self.setGeometry(0, 0, 1080, 1920)  # 윈도우 크기를 1080x1920으로 설정
+        self.showFullScreen()  # 전체 화면으로 표시 (필요에 따라 주석 처리)
+        # self.showMaximized()  # 최대화 (선택 사항)
+
         # 오픈화면 #######################################################################################################
-        self.stackedWidget.setCurrentIndex(0)  # 시작할때 화면은 오픈 페이지로 설정
+        self.stackedWidget.setCurrentIndex(0)  # 시작할 때 화면은 오픈 페이지로 설정
         self.set_ad_image()  # 이미지 변경
-        self.setWindowFlags(Qt.FramelessWindowHint) # 프레임 지우기
-        self.move(10,30) #창이동Zz
+        self.setWindowFlags(Qt.FramelessWindowHint)  # 프레임 지우기
+        # self.move(10,30)  # 창 이동 (필요 없으면 주석 처리)
         # 페이지 이동 및 타이머 시작
-        self.ad_label.mousePressEvent = lambda event: (self.stackedWidget.setCurrentWidget(self.main_page))  # 페이지 이동)
+        self.ad_label.mousePressEvent = lambda event: (self.stackedWidget.setCurrentWidget(self.main_page))  # 페이지 이동
 
         # 메인화면 시작 ##################################################################################################
-
         # 0. DB 불러오기
         con = sqlite3.connect('./DATA/data.db')
         self.price_df = pd.read_sql('select * from drinks_price', con)  # 가격 테이블
-        self.menu_df = pd.read_sql('select * from drinks_menu', con)  # 음료상세정보 전체 테이블
+        self.menu_df = pd.read_sql('select * from drinks_menu', con)  # 음료 상세 정보 전체 테이블
         self.img_path_df = pd.read_sql('select * from drinks_img_path', con)  # 음료 이미지 경로 테이블
-        self.order_table_df = pd.read_sql('select * from order_table', con)  #
+        self.order_table_df = pd.read_sql('select * from order_table', con)
         self.drink_num = 0  # 음료 주문번호
-        self.order_num = 100 # 고객 주문번호 100부터 시작
+        self.order_num = 100  # 고객 주문번호 100부터 시작
 
         # 1. 타이머
         self.DURATION_INT = 120
@@ -360,7 +365,7 @@ class WindowClass(QMainWindow, main_page_class):
         self.cancel_btn_5.clicked.connect(
             lambda: self.stackedWidget.setCurrentWidget(self.payment_choose_page))  # x 버튼 누르면 결제선택수단창으로 이동
         self.order_btn_2.clicked.connect(self.check_discount_and_move)  # 할인 적용하고 이동
-        # 숫자 키보드 버튼 누를때 이벤트 발생
+        # 숫자 키보드 버튼 누를 때 이벤트 발생
         keyboard_buttons = self.keyboard_frame.findChildren(QPushButton)
         for btn in keyboard_buttons:
             btn.clicked.connect(self.change_card_num)
@@ -369,7 +374,8 @@ class WindowClass(QMainWindow, main_page_class):
         self.qr_check_frame.setCursor(QCursor(QPixmap('./img/qt자료/bacord').scaled(80, 80)))
         self.card_label.setCursor(QCursor(QPixmap('./img/qt자료/payment_phone.png').scaled(120, 100)))
         self.horizontalSlider.setCursor(QCursor(QPixmap('./img/qt자료/matercard.png').scaled(80, 70)))
-    ## 함수 시작 #######################################################################################################
+
+   ## 함수 시작 #######################################################################################################
     '''결제창 관련 함수'''
     def askRcpt(self):
         """영수증 물어보는 함수로 이동"""
@@ -685,7 +691,7 @@ class WindowClass(QMainWindow, main_page_class):
     def show_sample_label(self):
         """임시 검은 라벨 띄우기"""
         self.sample_label = QLabel(self)
-        self.sample_label.setGeometry(0, 0, 768, 1024)
+        self.sample_label.setGeometry(0, 0, 1080, 1920)
         self.sample_label.setStyleSheet('background-color: rgba(45,45,45,200);')
         self.sample_label.show()
     def show_menu_arrow_btn(self):
@@ -768,7 +774,7 @@ class WindowClass(QMainWindow, main_page_class):
     def set_ad_image(self):
         """3초에 한번씩 오픈 페이지 이미지 변하게 함"""
         self.ad_img_num = 1  # 오픈 페이지 이미지 변수 설정
-        self.ad_label.setPixmap(QPixmap(f'./img/ad/ad_img_{self.ad_img_num}').scaled(QSize(768, 1024)))  # 첫번째 이미지
+        self.ad_label.setPixmap(QPixmap(f'./img/ad/ad_img_{self.ad_img_num}').scaled(QSize(1080, 1920)))  # 첫번째 이미지
         # 3초 타이머 설정.
         ad_timer = QTimer(self)
         ad_timer.timeout.connect(self.change_ad_image)  # 타임아웃되면 change_ad_image 함수로 이동
@@ -779,7 +785,7 @@ class WindowClass(QMainWindow, main_page_class):
         if self.ad_img_num == 5:  # 만약 5라면
             self.ad_img_num = 1  # 1로 만들어준다
         pixmap = QPixmap(f'./img/ad/ad_img_{self.ad_img_num}')  # 사진 경로 받아오기
-        self.ad_label.setPixmap(QPixmap(pixmap).scaled(QSize(768, 1024)))  # 라벨 이미지에 설정함
+        self.ad_label.setPixmap(QPixmap(pixmap).scaled(QSize(1080, 1920)))  # 라벨 이미지에 설정함
 
 def main():
     app = QApplication(sys.argv)

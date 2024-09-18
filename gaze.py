@@ -32,8 +32,7 @@ class GazeEstimator:
         if self.initial:
             self.calibrated = 0
             self.initial = False
-        
-        DISTANCE = 600
+            
         rgb_frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
         img_h, img_w = frame.shape[:2]
         results = self.mp_face_mesh.process(frame)
@@ -46,14 +45,9 @@ class GazeEstimator:
                 ]
             )
 
-            (l_bx, l_by), l_radius = cv.minEnclosingCircle(mesh_points[LEFT_EYE_IRIS])
-            (r_bx, r_by), r_radius = cv.minEnclosingCircle(mesh_points[RIGHT_EYE_IRIS])        
-            (l_ex, l_ey), l_radius = cv.minEnclosingCircle(mesh_points[LEFT_EYE_POINTS])
-            (r_ex, r_ey), r_radius = cv.minEnclosingCircle(mesh_points[RIGHT_EYE_POINTS])
-            center_eye = np.array([int((l_ex + r_ex) / 2), int((l_ey + r_ey) / 2)], dtype=np.int32)
-            diff_eye_x = int((l_ex + r_ex - l_bx - r_bx) / 2)
-            diff_eye_y = int((l_ey + r_ey - l_by - r_by) / 2)
             
+            center_eye = mesh_points[4]
+
             if ENABLE_HEAD_POSE:
                 pitch, yaw, roll = estimate_head_pose(mesh_points, (img_h, img_w))
                 # Assuming angle_buffer is defined somewhere
@@ -62,8 +56,7 @@ class GazeEstimator:
                 
                 if self.initial_pitch is None or not self.calibrated:
                     self.initial_pitch, self.initial_yaw, self.initial_roll = pitch, yaw, roll
-                    self.initial_x, self.initial_y = img_w / 2 - center_eye[0], img_h / 2 - center_eye[1]
-                    self.initial_diff_eye_x, self.initial_diff_eye_y = (diff_eye_x, diff_eye_y) if diff_eye_x is not None and diff_eye_y is not None else (0, 0)
+                    self.initial_x, self.initial_y = img_w / 2, img_h / 2
                     self.calibrated = True
                     if PRINT_DATA:
                         print("Head pose recalibrated.")
@@ -76,11 +69,9 @@ class GazeEstimator:
             yaw_radian = yaw * np.pi / 180
             pitch_radian = pitch * np.pi / 180
             
-            eye_adjustment = [(diff_eye_x - self.initial_diff_eye_x) * EYE_DEGREE_PARAMETER,
-                              (-diff_eye_y + self.initial_diff_eye_y) * EYE_DEGREE_PARAMETER * TB_WEIGHT]
             gaze_point = (
-                int((self.initial_x + center_eye[0]) / img_w * DISPLAY_W + DISTANCE * math.tan(yaw_radian) + eye_adjustment[0]),
-                int((self.initial_y + center_eye[1]) / img_h * DISPLAY_H - DISTANCE * TB_WEIGHT * math.tan(pitch_radian) + eye_adjustment[1]),
+                int(( center_eye[0]) / img_w * DISPLAY_W + DISTANCE * math.tan(yaw_radian) ),
+                int(( center_eye[1] - 35) / img_h * DISPLAY_H - DISTANCE * TB_WEIGHT * math.tan(pitch_radian)),
             )
             if len(self.x_list) < NUM_LIST:
                 self.x_list.insert(0, gaze_point[0])
@@ -93,7 +84,7 @@ class GazeEstimator:
             result_point = [int(sum(self.x_list) / len(self.x_list)), int(sum(self.y_list) / len(self.y_list))]
             
             return result_point[0], result_point[1]
-        return 100, 100  # Return None if no face landmarks are detected
+        return 200, 200  # Return None if no face landmarks are detected
 
 if __name__ == '__main__':
     cap = cv.VideoCapture(0)
