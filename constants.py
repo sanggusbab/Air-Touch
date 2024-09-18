@@ -16,7 +16,7 @@ Point_affin = [[int(0.5 * DISPLAY_W),int(0.5 * DISPLAY_H)], [int(0.8 * DISPLAY_W
 
 # Num of print grid
 NUM_GRID = 5 
-NUM_LIST = 20
+NUM_LIST = 5
 
 # Eye gaze parameter
 EYE_DEGREE_PARAMETER = DISTANCE / 10
