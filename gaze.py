@@ -7,6 +7,11 @@ import mediapipe as mp
 import collections
 from gaze_f import *
 
+
+angle_buffer_head = AngleBuffer(size=MOVING_AVERAGE_WINDOW)
+angle_buffer_eye = AngleBuffer(size=MOVING_AVERAGE_WINDOW+20)
+angle_buffer_pupils = AngleBuffer(size=MOVING_AVERAGE_WINDOW)
+
 class GazeEstimator:
     def __init__(self):
         self.mp_face_mesh = mp.solutions.face_mesh.FaceMesh(
@@ -16,26 +21,17 @@ class GazeEstimator:
             min_tracking_confidence=MIN_TRACKING_CONFIDENCE,
         )
         
-        self.x_list = [0]
-        self.y_list = [0]
         self.initial = True
         self.calibrated = False
-        self.initial_pitch = None
-        self.initial_yaw = None
-        self.initial_roll = None
-        self.initial_diff_eye_x = 0
-        self.initial_diff_eye_y = 0
-        self.initial_x = 0
-        self.initial_y = 0
 
     def gaze(self, frame):
         if self.initial:
-            self.calibrated = 0
+            self.calibrated = False
             self.initial = False
             
-        rgb_frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
         img_h, img_w = frame.shape[:2]
-        results = self.mp_face_mesh.process(frame)
+        frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+        results = self.mp_face_mesh.process(frame_rgb)
         
         if results.multi_face_landmarks:
             mesh_points = np.array(
@@ -44,47 +40,70 @@ class GazeEstimator:
                     for p in results.multi_face_landmarks[0].landmark
                 ]
             )
-
             
-            center_eye = mesh_points[4]
-
+            center = mesh_points[4]
+            N = 100
             if ENABLE_HEAD_POSE:
-                pitch, yaw, roll = estimate_head_pose(mesh_points, (img_h, img_w))
+                self.pitch, self.yaw, _ = estimate_head_pose(mesh_points, (img_h, img_w))
                 # Assuming angle_buffer is defined somewhere
-                angle_buffer.add([pitch, yaw, roll])
-                pitch, yaw, roll = angle_buffer.get_average()
+                angle_buffer_head.add([self.pitch, self.yaw, _])
+                self.pitch, self.yaw, _= angle_buffer_head.get_average()
                 
-                if self.initial_pitch is None or not self.calibrated:
-                    self.initial_pitch, self.initial_yaw, self.initial_roll = pitch, yaw, roll
-                    self.initial_x, self.initial_y = img_w / 2, img_h / 2
+                eye_tracking = self.eye_tracking(mesh_points)
+                angle_buffer_eye.add([eye_tracking[0],eye_tracking[1]])
+                eye_tracking_x, eye_tracking_y= angle_buffer_eye.get_average()
+                
+                if not self.calibrated:
+                    self.initial_pitch, self.initial_yaw = self.pitch, self.yaw
                     self.calibrated = True
-                    if PRINT_DATA:
-                        print("Head pose recalibrated.")
 
                 if self.calibrated:
-                    pitch -= self.initial_pitch
-                    yaw -= self.initial_yaw
-                    roll -= self.initial_roll
+                    self.pitch -= self.initial_pitch
+                    self.yaw -= self.initial_yaw
             
-            yaw_radian = yaw * np.pi / 180
-            pitch_radian = pitch * np.pi / 180
-            
+            self.yaw_t =  math.tan((self.yaw) * np.pi / 180)
+            self.pitch_t = math.tan((self.pitch) * np.pi / 180)
             gaze_point = (
-                int(( center_eye[0]) / img_w * DISPLAY_W + DISTANCE * math.tan(yaw_radian) ),
-                int(( center_eye[1] - 35) / img_h * DISPLAY_H - DISTANCE * TB_WEIGHT * math.tan(pitch_radian)),
+                int((center[0]) / img_w * DISPLAY_W + DISTANCE * self.yaw_t + eye_tracking_x),
+                int((center[1]) / img_h * DISPLAY_H - DISTANCE * TB_WEIGHT * self.pitch_t - eye_tracking_y* TB_WEIGHT),
             )
-            if len(self.x_list) < NUM_LIST:
-                self.x_list.insert(0, gaze_point[0])
-                self.y_list.insert(0, gaze_point[1])
-            else:
-                self.x_list.pop()
-                self.y_list.pop()
-                self.x_list.insert(0, gaze_point[0])
-                self.y_list.insert(0, gaze_point[1])
-            result_point = [int(sum(self.x_list) / len(self.x_list)), int(sum(self.y_list) / len(self.y_list))]
-            
-            return result_point[0], result_point[1]
+
+            return gaze_point
         return 200, 200  # Return None if no face landmarks are detected
+
+    def eye_tracking (self, mesh_points):
+        left_eye_points = mesh_points[LEFT_EYE_UNDERPOINTS]
+        left_iris_points = mesh_points[LEFT_EYE_IRIS]
+
+        right_eye_points = mesh_points[RIGHT_EYE_UNDERPOINTS]
+        right_iris_points = mesh_points[RIGHT_EYE_IRIS]
+
+        # Calculate eye centers
+        left_eye_center = np.mean(left_eye_points, axis=0)
+        right_eye_center = np.mean(right_eye_points, axis=0)
+
+        # Calculate pupil centers
+        left_pupil_center = np.mean(left_iris_points, axis=0)
+        right_pupil_center = np.mean(right_iris_points, axis=0)
+        eyes_center = ((left_eye_center[0] + right_eye_center[0]) / 2,
+                        (left_eye_center[1] + right_eye_center[1]) / 2)
+
+        # Compute differences between eye center and pupil center
+        left_diff = left_eye_center - left_pupil_center
+        right_diff = right_eye_center - right_pupil_center 
+        if not self.calibrated:
+            # Store the initial difference as a constant
+            self.constant_diff_left = left_diff
+            self.constant_diff_right = right_diff
+            
+        else :
+            result = (-self.constant_diff_left + left_diff) * EYE_DEGREE_PARAMETER + (-self.constant_diff_right + right_diff) * EYE_DEGREE_PARAMETER
+            return result
+        return [0,0]
+
+
+    def reset(self):
+        self.initial = True
 
 if __name__ == '__main__':
     cap = cv.VideoCapture(0)
@@ -96,4 +115,10 @@ if __name__ == '__main__':
             break
         hcd1, hcd2 = gaze_estimator.gaze(frame)
         if hcd1 is not None and hcd2 is not None:
-            print(hcd1, hcd2)
+            draw_gaze_point(frame, hcd1, hcd2)
+            # print(hcd1, hcd2)
+        key = cv.waitKey(1) & 0xFF
+        if key == ord('q'):
+            break
+        elif key == ord('r'):
+            gaze_estimator.reset()

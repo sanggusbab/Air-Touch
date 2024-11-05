@@ -4,12 +4,12 @@ import pyautogui
 import time
 import statistics
 from constants import *
-from gaze import GazeEstimator
+from eye_test import GazeEstimator
 
 # Parameters for moving dot
 DOT_RADIUS = 10
-DOT_SPEED = 5
-DISPLAY_W, DISPLAY_H = pyautogui.size()[0] - 100, pyautogui.size()[1] - 100
+DOT_SPEED = 8
+DISPLAY_W, DISPLAY_H = 2900, 1600
 
 class MovingDotTracker:
     def __init__(self):
@@ -32,6 +32,8 @@ class MovingDotTracker:
         return error
 
     def track_with_mouse(self):
+        # Reset dot position to the center of the screen
+        self.dot_position = [DISPLAY_W // 2, DISPLAY_H // 2]
         cap = cv.VideoCapture(0)
         
         try:
@@ -45,6 +47,9 @@ class MovingDotTracker:
 
                 # Get the current mouse position
                 mouse_x, mouse_y = pyautogui.position()
+                mouse_x -= 7
+                mouse_y -= 55
+                
 
                 # Calculate error between dot and mouse cursor
                 mouse_error = self.calculate_error(self.dot_position, [mouse_x, mouse_y])
@@ -60,6 +65,8 @@ class MovingDotTracker:
                 key = cv.waitKey(1) & 0xFF
                 if key == ord('q'):
                     break
+            cap.release()
+            cv.destroyAllWindows()
 
         finally:
             cap.release()
@@ -70,6 +77,29 @@ class MovingDotTracker:
                 print(f'Average Mouse Tracking Error: {average_mouse_error:.2f} pixels')
 
     def track_with_gaze(self, gaze_estimator):
+        # Calibration loop until 's' key is pressed
+        cap = cv.VideoCapture(0)
+        try:
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                frame = np.zeros((DISPLAY_H, DISPLAY_W, 3), dtype=np.uint8)  # Black background
+                cv.putText(frame, "Calibrating... Press 'k' to start tracking", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv.LINE_AA)
+                # Assuming gaze_estimator is calibrated to screen center
+                cv.imshow('Calibration', frame)
+                key = cv.waitKey(1) & 0xFF
+                if key == ord('k'):
+                    break
+                elif key == ord('r'):
+                    gaze_estimator.reset()
+        finally:
+            cap.release()
+            cv.destroyAllWindows()
+        
+        # Reset dot position to the center of the screen
+        # Reset dot position to the center of the screen
+        self.dot_position = [DISPLAY_W // 2, DISPLAY_H // 2]
         cap = cv.VideoCapture(0)
         
         try:
@@ -118,4 +148,26 @@ if __name__ == '__main__':
     # Step 2: Track with gaze estimator
     print("Tracking with gaze. Press 'q' to quit.")
     gaze_estimator = GazeEstimator()
+    gaze_estimator.reset()  # Initial reset to calibrate to the center of the screen
+    cap = cv.VideoCapture(0)
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frame = np.zeros((DISPLAY_H, DISPLAY_W, 3), dtype=np.uint8)  # Black background
+        cv.putText(frame, "Calibrating... Press 'k' to start tracking", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv.LINE_AA)
+        cv.imshow('Calibration', frame)
+        key = cv.waitKey(1) & 0xFF
+        if key == ord('k'):
+            break
+    
+    while True:
+        # Perform repeated resets to ensure calibration is accurate before starting
+        gaze_estimator.reset()
+        key = cv.waitKey(1) & 0xFF
+        if key == ord('k'):
+            break
     tracker.track_with_gaze(gaze_estimator)
+    
+    cap.release()
+    cv.destroyAllWindows()
