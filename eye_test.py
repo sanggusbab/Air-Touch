@@ -9,7 +9,7 @@ from gaze_f import *
 
 
 angle_buffer_head = AngleBuffer(size=MOVING_AVERAGE_WINDOW)
-angle_buffer_eye = AngleBuffer(size=MOVING_AVERAGE_WINDOW + 10)
+angle_buffer_eye = AngleBuffer(size=MOVING_AVERAGE_WINDOW + 30)
 angle_buffer_pupils = AngleBuffer(size=MOVING_AVERAGE_WINDOW)
 
 class GazeEstimator:
