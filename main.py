@@ -1,121 +1,121 @@
-import numpy as np
-import cv2 as cv
+import os
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
+import cv2
 import pyautogui
-import time
-import statistics
-from constants import *
+from click import HandClickDetector
 from gaze import GazeEstimator
 
-# Parameters for moving dot
-DOT_RADIUS = 10
-DOT_SPEED = 5
-DISPLAY_W, DISPLAY_H = pyautogui.size()[0] - 100, pyautogui.size()[1] - 100
 
-class MovingDotTracker:
-    def __init__(self):
-        self.dot_position = [DISPLAY_W // 2, DISPLAY_H // 2]
-        self.dot_direction = [1, 1]  # Moving diagonally initially
-        self.mouse_errors = []
-        self.gaze_errors = []
+def main():
+    import threading
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Webcam not found")
+        return
+    hand_click_detector = HandClickDetector()
+    Gaze = GazeEstimator()
 
-    def update_dot_position(self):
-        # Update the dot position
-        for i in range(2):
-            self.dot_position[i] += DOT_SPEED * self.dot_direction[i]
-            # Reverse direction if hitting the border
-            if self.dot_position[i] <= DOT_RADIUS or self.dot_position[i] >= (DISPLAY_W if i == 0 else DISPLAY_H) - DOT_RADIUS:
-                self.dot_direction[i] *= -1
+    x, y = 0, 0
+    is_Clicking_gesture = False
 
-    def calculate_error(self, dot_position, cursor_position):
-        # Calculate the distance between dot and cursor/gaze
-        error = np.linalg.norm(np.array(dot_position) - np.array(cursor_position))
-        return error
+    lock = threading.Lock()
 
-    def track_with_mouse(self):
-        cap = cv.VideoCapture(0)
-        
-        try:
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
+    frame = None
+    frame_ready = threading.Event()
+    stop_event = threading.Event()
 
-                # Update the dot position
-                self.update_dot_position()
+    gazePeriod = 1
+    gesturePeriod = 1
+    windowPeriod = 5
 
-                # Get the current mouse position
-                mouse_x, mouse_y = pyautogui.position()
+    # Thread for capturing frames
+    def frame_capture():
+        nonlocal frame
+        while not stop_event.is_set():
+            ret, new_frame = cap.read()
+            if not ret:
+                stop_event.set()
+                break
+            with lock:
+                frame = new_frame.copy()
+            frame_ready.set()
+            # Small sleep to prevent excessive CPU usage
+            cv2.waitKey(1)
 
-                # Calculate error between dot and mouse cursor
-                mouse_error = self.calculate_error(self.dot_position, [mouse_x, mouse_y])
-                self.mouse_errors.append(mouse_error)
+    # Thread for gaze estimation
+    def gaze_thread():
+        nonlocal x, y
+        count = 0
+        while not stop_event.is_set():
+            frame_ready.wait()
+            with lock:
+                current_frame = frame.copy()
+            if count % gazePeriod == 0:
+                x_new, y_new = Gaze.gaze(current_frame)  # TODO: develop gaze module
+                x_new = max(50, min(x_new, 1080 - 50))
+                y_new = max(50, min(y_new, 1920 - 50))
+                with lock:
+                    x, y = x_new, y_new
+            count += 1
 
-                # Draw moving dot on the frame
-                frame = np.zeros((DISPLAY_H, DISPLAY_W, 3), dtype=np.uint8)  # Black background
-                cv.circle(frame, tuple(self.dot_position), DOT_RADIUS, (0, 255, 0), -1)
-                cv.circle(frame, (mouse_x, mouse_y), 5, (255, 0, 0), -1)  # Draw mouse cursor for visualization
+    # Thread for gesture detection
+    def gesture_thread():
+        nonlocal is_Clicking_gesture
+        count = 0
+        while not stop_event.is_set():
+            frame_ready.wait()
+            with lock:
+                current_frame = frame.copy()
+            if count % gesturePeriod == 0:
+                result = hand_click_detector.click(cv2.cvtColor(current_frame, cv2.COLOR_BGR2RGB))
+                if result:
+                    with lock:
+                        is_Clicking_gesture = True  # TODO: develop gesture module
+            count += 1
 
-                # Show the frame
-                cv.imshow('Mouse Tracking', frame)
-                key = cv.waitKey(1) & 0xFF
-                if key == ord('q'):
-                    break
+    # Start the threads
+    t_frame = threading.Thread(target=frame_capture)
+    t_gaze = threading.Thread(target=gaze_thread)
+    t_gesture = threading.Thread(target=gesture_thread)
 
-        finally:
-            cap.release()
-            cv.destroyAllWindows()
-            # Calculate average error
-            if self.mouse_errors:
-                average_mouse_error = statistics.mean(self.mouse_errors)
-                print(f'Average Mouse Tracking Error: {average_mouse_error:.2f} pixels')
+    t_frame.start()
+    t_gaze.start()
+    t_gesture.start()
 
-    def track_with_gaze(self, gaze_estimator):
-        cap = cv.VideoCapture(0)
-        
-        try:
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
+    cycleCounter = 0
 
-                # Update the dot position
-                self.update_dot_position()
+    try:
+        while not stop_event.is_set():
+            cycleCounter += 1
 
-                # Get the current gaze position using the GazeEstimator
-                gaze_x, gaze_y = gaze_estimator.gaze(frame)
+            # Wait for the frame to be ready
+            frame_ready.wait()
+            frame_ready.clear()
 
-                # Calculate error between dot and gaze point
-                gaze_error = self.calculate_error(self.dot_position, [gaze_x, gaze_y])
-                self.gaze_errors.append(gaze_error)
+            with lock:
+                x_current, y_current = x, y
+                click_gesture = is_Clicking_gesture
 
-                # Draw moving dot and gaze point on the frame
-                frame = np.zeros((DISPLAY_H, DISPLAY_W, 3), dtype=np.uint8)  # Black background
-                cv.circle(frame, tuple(self.dot_position), DOT_RADIUS, (0, 255, 0), -1)
-                if gaze_x is not None and gaze_y is not None:
-                    cv.circle(frame, (gaze_x, gaze_y), 5, (255, 0, 0), -1)  # Draw gaze point for visualization
+            if cycleCounter % windowPeriod == 0:
+                if click_gesture:
+                    print(f'You clicked {x_current}, {y_current}')
+                    pyautogui.click(x_current, y_current)
+                    with lock:
+                        is_Clicking_gesture = False
 
-                # Show the frame
-                cv.imshow('Gaze Tracking', frame)
-                key = cv.waitKey(1) & 0xFF
-                if key == ord('q'):
-                    break
+            print(x_current, y_current)
+            pyautogui.moveTo(x_current, y_current)
 
-        finally:
-            cap.release()
-            cv.destroyAllWindows()
-            # Calculate average error
-            if self.gaze_errors:
-                average_gaze_error = statistics.mean(self.gaze_errors)
-                print(f'Average Gaze Tracking Error: {average_gaze_error:.2f} pixels')
+    except KeyboardInterrupt:
+        stop_event.set()
+
+    # Clean up
+    stop_event.set()
+    t_frame.join()
+    t_gaze.join()
+    t_gesture.join()
+    cap.release()
 
 if __name__ == '__main__':
-    tracker = MovingDotTracker()
-    
-    # Step 1: Track with mouse
-    print("Tracking with mouse. Press 'q' to quit.")
-    tracker.track_with_mouse()
-
-    # Step 2: Track with gaze estimator
-    print("Tracking with gaze. Press 'q' to quit.")
-    gaze_estimator = GazeEstimator()
-    tracker.track_with_gaze(gaze_estimator)
+    pyautogui.FAILSAFE = False
+    main()
