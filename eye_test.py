@@ -87,25 +87,16 @@ class GazeEstimator:
         # Calculate pupil centers
         left_pupil_center = np.mean(left_iris_points, axis=0)
         right_pupil_center = np.mean(right_iris_points, axis=0)
-        
+
         # Compute differences between eye center and pupil center
         left_diff = left_pupil_center - left_eye_center
         right_diff = right_pupil_center - right_eye_center
 
-        # Compute the size of each eye
-        left_eye_size = np.linalg.norm(left_eye_points[3] - left_eye_points[0])  # Horizontal distance between key points
-        right_eye_size = np.linalg.norm(right_eye_points[3] - right_eye_points[0])  # Horizontal distance between key points
-
-        # Use the eye with the larger size
-        if left_eye_size >= right_eye_size:
-            chosen_diff = left_diff
-            print("Using Left Eye for Gaze Estimation")
-        else:
-            chosen_diff = right_diff
-            print("Using Right Eye for Gaze Estimation")
+        # Average the differences between both eyes
+        avg_diff = (left_diff + right_diff) / 2
 
         # Separate x and y components for more control
-        diff_x, diff_y = chosen_diff[0], chosen_diff[1]
+        diff_x, diff_y = avg_diff[0], avg_diff[1]
 
         # Normalize the direction vector
         diff_norm = np.linalg.norm([diff_x, diff_y])
@@ -121,11 +112,11 @@ class GazeEstimator:
         else:
             result_x = (diff_x - self.constant_diff_left[0]) * EYE_DEGREE_PARAMETER
             result_y = (diff_y - self.constant_diff_left[1]) * EYE_DEGREE_PARAMETER
-            result = [result_x, result_y]
+            result = [-result_x, -result_y]
             #print(f"Eye Tracking Result - X: {result_x}, Y: {result_y}")
             return result
-        
         return [0, 0]
+
 
     def reset(self):
         self.initial = True
